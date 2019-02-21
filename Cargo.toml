@@ -13,10 +13,13 @@ clients and servers.
 categories = ["asynchronous", "network-programming"]
 keywords = ["io", "async", "non-blocking", "futures", "service"]
 
-[dev-dependencies]
-tower-service = { version = "0.2", path = "tower-service" }
-tower-util = { version = "0.1", path = "tower-util" }
+[dependencies]
 futures = "0.1"
+tower-service = { version = "0.2", path = "tower-service" }
+tower-middleware = { version = "0.1", path = "tower-middleware" }
+tower-util = { version = "0.1", path = "tower-util" }
+
+[dev-dependencies]
 log = "0.4.1"
 env_logger = { version = "0.5.3", default-features = false }
 tokio-timer = "0.1"
