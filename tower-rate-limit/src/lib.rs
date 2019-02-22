@@ -6,10 +6,12 @@
 #[macro_use]
 extern crate futures;
 extern crate tokio_timer;
+extern crate tower_middleware;
 extern crate tower_service;
 
 use futures::{Future, Poll};
 use tokio_timer::Delay;
+use tower_middleware::Middleware;
 use tower_service::Service;
 
 use std::time::{Duration, Instant};
@@ -20,6 +22,10 @@ pub struct RateLimit<T> {
     inner: T,
     rate: Rate,
     state: State,
+}
+
+pub struct RateLimitMiddleware {
+    rate: Rate,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -47,6 +53,30 @@ enum State {
     Limited(Delay),
     Ready { until: Instant, rem: u64 },
 }
+
+// ===== impl RateLimitMiddleware =====
+
+impl RateLimitMiddleware {
+    pub fn new(num: u64, per: Duration) -> Self {
+        let rate = Rate { num, per };
+        RateLimitMiddleware { rate }
+    }
+}
+
+impl<S, Request> Middleware<S, Request> for RateLimitMiddleware
+where
+    S: Service<Request>,
+{
+    type Response = S::Response;
+    type Error = Error<S::Error>;
+    type Service = RateLimit<S>;
+
+    fn wrap(&self, service: S) -> Self::Service {
+        RateLimit::new(service, self.rate)
+    }
+}
+
+// ===== impl RateLimit =====
 
 impl<T> RateLimit<T> {
     /// Create a new rate limiter

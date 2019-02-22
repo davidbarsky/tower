@@ -7,15 +7,21 @@
 //! This main crate is still a WIP.
 
 extern crate tower_middleware;
+extern crate tower_reconnect;
 extern crate tower_service;
 extern crate tower_util;
 
 use std::marker::PhantomData;
 use tower_middleware::{Chain, Middleware, MiddlewareExt};
+use tower_reconnect::Reconnect;
 pub use tower_service::Service;
 pub use tower_util::MakeService;
 
-pub struct ServiceBuilder<S: MakeService<Target, Request>, M, Target, Request> {
+pub struct ServiceBuilder<S, M, Target, Request>
+where
+    S: Service<Target>,
+    S::Response: Service<Request>,
+{
     maker: S,
     middleware: M,
     _pd: PhantomData<(Target, Request)>,
@@ -23,7 +29,8 @@ pub struct ServiceBuilder<S: MakeService<Target, Request>, M, Target, Request> {
 
 impl<M, Target, Request> ServiceBuilder<M, Identity, Target, Request>
 where
-    M: MakeService<Target, Request>,
+    M: Service<Target>,
+    M::Response: Service<Request>,
 {
     pub fn new(maker: M) -> Self {
         ServiceBuilder {
@@ -36,8 +43,9 @@ where
 
 impl<S, M, Target, Request> ServiceBuilder<S, M, Target, Request>
 where
-    S: MakeService<Target, Request>,
-    M: Middleware<S::Service, Request>,
+    S: Service<Target>,
+    S::Response: Service<Request>,
+    M: Middleware<S::Response, Request>,
 {
     pub fn middleware<U: Middleware<M::Service, Request>>(
         self,
@@ -48,6 +56,19 @@ where
             middleware: self.middleware.chain(middleware),
             _pd: PhantomData,
         }
+    }
+}
+
+impl<S, M, Target, Request> ServiceBuilder<S, M, Target, Request>
+where
+    S: Service<Target>,
+    S::Response: Service<Request>,
+    M: Middleware<Reconnect<S, Target>, Request>,
+    Target: Clone,
+{
+    pub fn build(self, target: Target) -> M::Service {
+        let reconnect = Reconnect::new(self.maker, target);
+        self.middleware.wrap(reconnect)
     }
 }
 
