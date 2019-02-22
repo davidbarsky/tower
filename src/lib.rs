@@ -14,8 +14,8 @@ extern crate tower_util;
 use std::marker::PhantomData;
 use tower_middleware::{Chain, Middleware, MiddlewareExt};
 use tower_reconnect::Reconnect;
-pub use tower_service::Service;
-pub use tower_util::MakeService;
+use tower_service::Service;
+use tower_util::MakeService;
 
 pub struct ServiceBuilder<S, M, Target, Request>
 where

@@ -1,51 +1,42 @@
 extern crate futures;
+extern crate http;
+extern crate hyper;
 extern crate tower;
+extern crate tower_hyper;
 extern crate tower_in_flight_limit;
 extern crate tower_rate_limit;
 extern crate tower_util;
 
-use futures::future::{self, FutureResult};
-use futures::Poll;
+use futures::Future;
+use http::Uri;
+use hyper::client::connect::Destination;
+use hyper::client::HttpConnector;
+use hyper::{Body, Request, Response};
 use std::time::Duration;
-use tower::{MakeService, Service, ServiceBuilder};
+use tower::ServiceBuilder;
+use tower_hyper::client::{Builder, Connect};
+use tower_hyper::util::Connector;
 use tower_in_flight_limit::InFlightLimitMiddleware;
 use tower_rate_limit::RateLimitMiddleware;
 
 fn main() {
-    let builder = ServiceBuilder::new(Mock)
+    hyper::rt::run(request.map(|_| ()).map_err(|_| ()))
+}
+
+fn request() -> impl Future<Item = Response<Body>, Error = hyper::Error> {
+    let dst = Destination::try_from_uri(Uri::from_static("http://127.0.0.1:3000")).unwrap();
+    let connector = Connector::new(HttpConnector::new(1));
+    let hyper = Connect::new(connector, Builder::new());
+
+    let client = ServiceBuilder::new(hyper)
         .middleware(InFlightLimitMiddleware::new(5))
         .middleware(RateLimitMiddleware::new(5, Duration::from_secs(1)))
-        .build("https://google.com".to_owned());
-}
+        .build(dst);
 
-struct Mock;
+    let request = Request::builder()
+        .method("GET")
+        .body(Body::empty())
+        .unwrap();
 
-impl Service<String> for Mock {
-    type Response = MockConn;
-    type Error = ();
-    type Future = FutureResult<MockConn, ()>;
-
-    fn poll_ready(&mut self) -> Poll<(), Self::Error> {
-        Ok(().into())
-    }
-
-    fn call(&mut self, _: String) -> Self::Future {
-        future::ok(MockConn)
-    }
-}
-
-struct MockConn;
-
-impl Service<()> for MockConn {
-    type Response = ();
-    type Error = ();
-    type Future = FutureResult<(), ()>;
-
-    fn poll_ready(&mut self) -> Poll<(), Self::Error> {
-        Ok(().into())
-    }
-
-    fn call(&mut self, _: ()) -> Self::Future {
-        future::ok(())
-    }
+    client.call(request)
 }
