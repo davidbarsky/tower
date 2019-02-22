@@ -13,9 +13,11 @@ pub trait MiddlewareExt<S, Request>: Middleware<S, Request> {
     /// This defines a middleware stack.
     fn chain<T>(self, middleware: T) -> Chain<Self, T>
     where
-        T: Middleware<S, Request>,
+        T: Middleware<Self::Service, Request>,
         Self: Sized,
     {
         Chain::new(self, middleware)
     }
 }
+
+impl<T, S, Request> MiddlewareExt<S, Request> for T where T: Middleware<S, Request> {}

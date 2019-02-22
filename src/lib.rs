@@ -12,8 +12,8 @@ extern crate tower_util;
 
 use std::marker::PhantomData;
 use tower_middleware::{Chain, Middleware, MiddlewareExt};
-use tower_service::Service;
-use tower_util::MakeService;
+pub use tower_service::Service;
+pub use tower_util::MakeService;
 
 pub struct ServiceBuilder<S: MakeService<Target, Request>, M, Target, Request> {
     maker: S,
@@ -21,24 +21,28 @@ pub struct ServiceBuilder<S: MakeService<Target, Request>, M, Target, Request> {
     _pd: PhantomData<(Target, Request)>,
 }
 
-// impl<MakeService> ServiceBuilder<MakeService, Identity> {
-//     pub fn new(maker: MakeService) -> Self {
-//         ServiceBuilder {
-//             maker,
-//             middleware: Identity::new(),
-//         }
-//     }
-// }
+impl<M, Target, Request> ServiceBuilder<M, Identity, Target, Request>
+where
+    M: MakeService<Target, Request>,
+{
+    pub fn new(maker: M) -> Self {
+        ServiceBuilder {
+            maker,
+            middleware: Identity::new(),
+            _pd: PhantomData,
+        }
+    }
+}
 
 impl<S, M, Target, Request> ServiceBuilder<S, M, Target, Request>
 where
     S: MakeService<Target, Request>,
     M: Middleware<S::Service, Request>,
 {
-    pub fn middleware<U: Middleware<S::Service, Request>>(
+    pub fn middleware<U: Middleware<M::Service, Request>>(
         self,
         middleware: U,
-    ) -> ServiceBuilder<S, <M as Middleware<S::Service, Request>>::Response, Target, Request> {
+    ) -> ServiceBuilder<S, Chain<M, U>, Target, Request> {
         ServiceBuilder {
             maker: self.maker,
             middleware: self.middleware.chain(middleware),
