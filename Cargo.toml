@@ -24,6 +24,8 @@ tower-util = { version = "0.1", path = "tower-util" }
 tower-in-flight-limit = { version = "0.1", path = "tower-in-flight-limit" }
 tower-rate-limit = { version = "0.1", path = "tower-rate-limit" }
 tower-hyper = { git = "https://github.com/tower-rs/tower-hyper" }
+tower-h2 = { git = "https://github.com/tower-rs/tower-h2" }
+tokio = "0.1"
 hyper = "0.12"
 http = "0.1"
 log = "0.4.1"
