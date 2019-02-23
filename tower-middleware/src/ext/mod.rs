@@ -1,3 +1,4 @@
+use tower_service::Service;
 use Middleware;
 
 mod chain;
@@ -11,9 +12,10 @@ pub trait MiddlewareExt<S, Request>: Middleware<S, Request> {
     /// `middleware` to services being wrapped.
     ///
     /// This defines a middleware stack.
-    fn chain<T>(self, middleware: T) -> Chain<Self, T>
+    fn chain<T, SS>(self, middleware: T) -> Chain<Self, T>
     where
-        T: Middleware<Self::Service, Request>,
+        T: Middleware<SS, Request>,
+        SS: Service<Request>,
         Self: Sized,
     {
         Chain::new(self, middleware)

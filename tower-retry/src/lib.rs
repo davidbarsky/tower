@@ -175,7 +175,8 @@ where
     type Service = Retry<P, S>;
 
     fn wrap(&self, service: S) -> Self::Service {
-        Retry::new(self.policy.clone(), service)
+        let policy = self.policy.clone();
+        Retry::new(policy, service)
     }
 }
 

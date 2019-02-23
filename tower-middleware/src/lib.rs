@@ -71,7 +71,7 @@ use tower_service::Service;
 ///     service: S,
 /// }
 ///
-/// impl<S, Request> Service<Request> for LogService<S>
+/// impl<S, Request> Service<Request> for LogService<S>
 /// where
 ///     S: Service<Request>,
 ///     Request: fmt::Debug,

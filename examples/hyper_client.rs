@@ -5,7 +5,9 @@ extern crate tower;
 extern crate tower_buffer;
 extern crate tower_hyper;
 extern crate tower_in_flight_limit;
+extern crate tower_middleware;
 extern crate tower_rate_limit;
+extern crate tower_reconnect;
 extern crate tower_retry;
 extern crate tower_service;
 extern crate tower_util;
@@ -24,11 +26,12 @@ use tower_hyper::util::Connector;
 use tower_hyper::Body;
 use tower_in_flight_limit::InFlightLimitMiddleware;
 use tower_rate_limit::RateLimitMiddleware;
+use tower_reconnect::Reconnect;
 use tower_retry::RetryMiddleware;
 use tower_service::Service;
 
 fn main() {
-    hyper::rt::run(request().map(|_| ()).map_err(|_| ()))
+    hyper::rt::run(futures::lazy(|| request().map(|_| ())))
 }
 
 fn request() -> impl Future<Item = Response<hyper::Body>, Error = ()> {
@@ -36,14 +39,16 @@ fn request() -> impl Future<Item = Response<hyper::Body>, Error = ()> {
     let hyper = Connect::new(connector, Builder::new());
 
     let policy = RetryPolicy::new(5);
-
     let dst = Destination::try_from_uri(Uri::from_static("http://127.0.0.1:3000")).unwrap();
-    let mut client = ServiceBuilder::new(hyper)
-        .middleware(InFlightLimitMiddleware::new(5))
-        .middleware(RateLimitMiddleware::new(5, Duration::from_secs(1)))
+
+    let maker = ServiceBuilder::new(hyper)
         .middleware(BufferMiddleware::new(5))
         .middleware(RetryMiddleware::new(policy))
-        .build(dst);
+        .middleware(InFlightLimitMiddleware::new(5))
+        .middleware(RateLimitMiddleware::new(5, Duration::from_secs(1)))
+        .build();
+
+    let mut client = Reconnect::new(maker, dst);
 
     let request = Request::builder()
         .method("GET")
