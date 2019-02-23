@@ -10,6 +10,7 @@ extern crate futures;
 extern crate lazycell;
 extern crate tokio_executor;
 extern crate tokio_sync;
+extern crate tower_middleware;
 extern crate tower_service;
 
 use futures::future::Executor;
@@ -19,6 +20,7 @@ use std::{error, fmt};
 use tokio_executor::DefaultExecutor;
 use tokio_sync::mpsc;
 use tokio_sync::oneshot;
+use tower_middleware::Middleware;
 use tower_service::Service;
 
 /// Adds a buffer in front of an inner service.
@@ -30,6 +32,12 @@ where
 {
     tx: mpsc::Sender<Message<Request, T::Future, T::Error>>,
     state: Arc<State<T::Error>>,
+}
+
+/// Buffer middleware layer
+#[derive(Debug)]
+pub struct BufferMiddleware {
+    bound: usize,
 }
 
 /// Future eventually completed with the response to the original request.
@@ -117,6 +125,32 @@ enum ResponseState<T, E> {
     Failed(Arc<ServiceError<E>>),
     Rx(oneshot::Receiver<Result<T, Arc<ServiceError<E>>>>),
     Poll(T),
+}
+
+impl BufferMiddleware {
+    /// Create a new buffer middleware
+    pub fn new(bound: usize) -> Self {
+        BufferMiddleware { bound }
+    }
+}
+
+impl<S, Request> Middleware<S, Request> for BufferMiddleware
+where
+    S: Service<Request> + Send + 'static,
+    S::Future: Send,
+    S::Error: Send + Sync,
+    Request: Send + 'static,
+{
+    type Response = S::Response;
+    type Error = Error<S::Error>;
+    type Service = Buffer<S, Request>;
+
+    fn wrap(&self, service: S) -> Self::Service {
+        match Buffer::new(service, self.bound) {
+            Ok(b) => b,
+            Err(_) => panic!("Unable to spawn, are you sure this is running in a tokio runtime?"),
+        }
+    }
 }
 
 impl<T, Request> Buffer<T, Request>

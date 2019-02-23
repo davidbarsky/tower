@@ -7,9 +7,11 @@
 #[macro_use]
 extern crate futures;
 extern crate tokio_timer;
+extern crate tower_middleware;
 extern crate tower_service;
 
 use futures::{Async, Future, Poll};
+use tower_middleware::Middleware;
 use tower_service::Service;
 
 pub mod budget;
@@ -89,6 +91,12 @@ pub struct Retry<P, S> {
     service: S,
 }
 
+/// Middleware wrapper for the `Retry` service.
+#[derive(Clone, Debug)]
+pub struct RetryMiddleware<P> {
+    policy: P,
+}
+
 /// The `Future` returned by a `Retry` service.
 #[derive(Debug)]
 pub struct ResponseFuture<P, S, Request>
@@ -145,6 +153,29 @@ where
             retry: self.clone(),
             state: State::Called(future),
         }
+    }
+}
+
+// ===== impl RetryMiddleware =====
+
+impl<P> RetryMiddleware<P> {
+    /// Create a new retry policy
+    pub fn new(policy: P) -> Self {
+        RetryMiddleware { policy }
+    }
+}
+
+impl<P, S, Request> Middleware<S, Request> for RetryMiddleware<P>
+where
+    S: Service<Request> + Clone,
+    P: Policy<Request, S::Response, S::Error> + Clone,
+{
+    type Response = S::Response;
+    type Error = S::Error;
+    type Service = Retry<P, S>;
+
+    fn wrap(&self, service: S) -> Self::Service {
+        Retry::new(self.policy.clone(), service)
     }
 }
 
