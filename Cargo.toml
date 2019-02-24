@@ -60,3 +60,6 @@ tower-service = { path = "../tower/tower-service" }
 tower-retry = { path = "../tower/tower-retry" }
 tower-middleware = { path = "../tower/tower-middleware" }
 tower-util = { path = "../tower/tower-util" }
+
+[patch.'https://github.com/tower-rs/tower-hyper']
+tower-hyper = { path = "../tower-hyper" }

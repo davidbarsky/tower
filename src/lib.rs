@@ -85,17 +85,17 @@ where
 
 impl<S, M, Target, Request> Service<Target> for ServiceBuilderMaker<S, M, Target, Request>
 where
-    S: Service<Target> + 'static,
-    S::Response: Service<Request> + 'static,
-    S::Error: 'static,
-    S::Future: 'static,
-    M: Middleware<S::Response, Request> + 'static,
-    M::Service: 'static,
+    S: Service<Target> + Send + 'static,
+    S::Response: Service<Request> + Send + 'static,
+    S::Error: Send + 'static,
+    S::Future: Send + 'static,
+    M: Middleware<S::Response, Request> + Sync + Send + 'static,
+    M::Service: Send + 'static,
     Target: Clone,
 {
     type Response = M::Service;
     type Error = S::Error;
-    type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
+    type Future = Box<Future<Item = Self::Response, Error = Self::Error> + Send + 'static>;
 
     fn poll_ready(&mut self) -> Poll<(), Self::Error> {
         self.maker.poll_ready()
